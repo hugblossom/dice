@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <style>
+        * { font-family: "esamanruLight"; margin: 0; padding: 0; box-sizing: border-box; user-select: none; }
+        html, body { width: 100%; height: 100%; }
+        ol, ul { list-style: none; }
+        #diceBox { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); }
+        #diceBox { width: 100%; height: 100%; }
+        #diceBox .frame { width: 100%; height: 50px; position: absolute; left: 0; top: 50%; transform: translateY(-50%); text-align: center; overflow: hidden; }        
+        #up { opacity: 0; display: inline-block; position: absolute; top: 0; }
+        #down { opacity: 0; display: inline-block; position: absolute; bottom: 0; }
+        .message { opacity: 0; }
+        .on { opacity: 1 !important; }
+        #up li, #down li { font-size: 2rem; }
+        .inputBox { z-index: 1; position: relative; }
+
+        @font-face {
+            font-family: 'esamanruLight';
+            font-style: lighter;
+            font-weight: 100;
+            src : url(/fonts/esamanruLight.ttf) format('truetype'),
+                url(/fonts/esamanruLight.otf) format('opentype');
+        }
+        @font-face {
+            font-family: 'esamanruLight';
+            font-style: normal;
+            font-weight: 200;
+            src : url(/fonts/esamanruMedium.ttf) format('truetype'),
+                url(/fonts/esamanruMedium.otf) format('opentype');
+        }
+        @font-face {
+            font-family: 'esamanruBold';
+            font-style: bold;
+            font-weight: 300;
+            src : url(/fonts/esamanruBold.ttf) format('truetype'),
+                url(/fonts/esamanruBold.otf) format('opentype');
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <div class="inputBox"></div>
+    </div>
+    <script>
+        function Dice(maxNum) {
+            this.proceeding = false;
+            this.maxNum = maxNum;
+            this.diceHeight = 50;
+            this.minTransition = 1;
+            this.startX = 0;
+            this.endX = 0;
+            this.startY = 0;
+            this.endY = 0;
+            this.resultNum = 0;
+            this.diceBox = null;
+            this.Dice = null;
+            this.Context = null;
+            this.setDice = () => {
+                if (this.diceBox != null) this.diceBox.remove();
+                this.diceBox = document.createElement('div');
+                this.diceBox.id = "diceBox";
+                this.diceBox.innerHTML =
+                `
+                    <div class="frame">
+                        <p class="message on">마우스를 드래그하세요</p>
+                        <ul id="up">
+                            <li style="height: ${this.diceHeight}px"><span>1</span></li>
+                        </ul>
+                        <ul id="down">
+                            <li style="height: ${this.diceHeight}px"><span>1</span></li>
+                        </ul>
+                    </div>
+                `;
+                document.querySelector('#container').append(this.diceBox);
+                this.Dice = new Object();
+                this.Dice["up"] = document.querySelector('#up');
+                this.Dice["down"] = document.querySelector('#down');
+                this.alignDice();
+                this.setInputs();
+                this.addEventListener();
+            }
+            this.setContext = () => {
+                if (this.Context == null) this.Context = new Map();
+                document.querySelectorAll('.context input').forEach(input => {
+                    this.Context.set(input.id, input.value);
+                });
+                console.log(this.Context)
+            }
+            this.setInputs = () => {
+                let inputs = "";
+                inputs += 
+                `
+                    <div class="num">
+                        <p>주사위 수량: </p>
+                        <input type="text" id="maxNum" value="${this.maxNum}">
+                        <button type="button" id="changeMaxNum">변경</button>
+                    </div><br>
+                    <div class="context">
+                        <p>주사위 값: </p>
+                `;
+                for (i = 1; i <= this.maxNum; i ++) {
+                    inputs += `<input type="text" id="${i}" value="${this.Context.has(`${i}`) ? this.Context.get(`${i}`) : `${i}`}">`;
+                }
+                inputs +=
+                `
+                        <button type="button" id="changeContext">변경</button>
+                    </div>
+                `;
+
+                document.querySelector('.inputBox').innerHTML = inputs;
+            }
+            this.initializeDice = () => {
+                Object.keys(this.Dice).forEach(dice => {
+                    document.querySelector('.message').classList.add("on");
+                    this.Dice[dice].removeAttribute("style");
+                    this.Dice[dice].classList.remove("on");
+                });
+            }
+            this.alignDice = () => {
+                let ups = "";
+                let downs = "";
+                if (this.Context == null) this.Context = new Map();
+                for (n = 0; n < 15; n ++) {
+                    for (i = 1; i <= this.maxNum; i ++) {
+                        ups += `<li style="height: ${this.diceHeight}px"><span>${this.Context.has(`${i}`) ? this.Context.get(`${i}`) : `${i}`}</span></li>`;
+                    }
+                    for (i = this.maxNum; i >= 1; i --) {
+                        downs += `<li style="height: ${this.diceHeight}px"><span>${this.Context.has(`${i}`) ? this.Context.get(`${i}`) : `${i}`}</span></li>`;
+                    }
+                }
+                this.Dice.up.innerHTML = ups;
+                this.Dice.down.innerHTML = downs;
+            }
+            this.addEventListener = () => {
+                this.diceBox.addEventListener("mousedown", (e) => {
+                    this.startX = e.clientX;
+                    this.startY = e.clientY;
+                });
+                this.diceBox.addEventListener("mouseup", (e) => {
+                    this.endX = e.clientX;
+                    this.endY = e.clientY;
+                    this.handleDice();
+                });
+                document.querySelector('#changeMaxNum').addEventListener("click", () => {
+                    this.maxNum = document.querySelector('#maxNum').value;
+                    this.setDice();
+                });
+                document.querySelector('#changeContext').addEventListener("click", () => {
+                    this.setContext();
+                    this.setDice();
+                });
+            }
+            this.handleDice = async () => {
+                if (this.proceeding) return;
+                const width = this.diceBox.offsetWidth;
+                const height = this.diceBox.offsetHeight;
+                const direction = this.startY > this.endY ? "up" : "down"; 
+                const movedX = Math.abs(this.endX - this.startX);
+                const movedY = Math.abs(this.endY - this.startY);
+                if (movedX < 5 || movedY < 5) return;
+                this.proceeding = true;
+                let strengthX = 5;
+                let strengthY = 5;
+                if (movedX < width * 0.8) {
+                    strengthX = 4;
+                    if (movedX < width * 0.6) {
+                        strengthX = 3;
+                        if (movedX < width * 0.4) {
+                            strengthX = 2;
+                            if (movedX < width * 0.2) {
+                                strengthX = 1;
+                            }
+                        }
+                    }
+                }
+                if (movedY < height * 0.8) {
+                    strengthY = 4;
+                    if (movedY < height * 0.6) {
+                        strengthY = 3;
+                        if (movedY < height * 0.4) {
+                            strengthY = 2;
+                            if (movedY < height * 0.2) {
+                                strengthY = 1;
+                            }
+                        }
+                    }
+                }
+                const strength = strengthX + strengthY;
+                const ramdomPerSet = Math.floor((Math.random() * (this.maxNum - 1)) + 1);
+                const moveY = this.maxNum * this.diceHeight * strength - (ramdomPerSet * this.diceHeight);
+
+                this.moveDice({direction, strength, moveY})
+            }
+            this.moveDice = async (Move) => {
+                this.Dice[Move.direction].classList.add("on");
+                document.querySelector('.message').classList.remove("on");
+                Object.keys(this.Dice).forEach(dice => {
+                    this.Dice[dice].setAttribute("style", `transition: ${Move.direction == "up" ? "top" : "bottom"} ${this.minTransition + (0.2 * Move.strength)}s; ${Move.direction == "up" ? `top: -${Move.moveY}px` : `bottom: -${Move.moveY}px`}`);
+                });
+                this.Dice.up.childNodes.forEach(num => {
+                    if (num.offsetTop == Move.moveY) this.resultNum = num.querySelector('span').textContent;
+                });
+                await new Promise(resolve => setTimeout(resolve, (this.minTransition + (0.2 * Move.strength)) * 2 * 1000));
+                
+                this.initializeDice();
+                this.proceeding = false;
+
+                alert(this.resultNum);
+            }
+        }
+        document.addEventListener("DOMContentLoaded", () => {
+            const dice = new Dice(5);
+            dice.setDice();
+        });
+    </script>
+</body>
+</html>
